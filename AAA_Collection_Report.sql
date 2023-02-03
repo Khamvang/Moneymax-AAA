@@ -1,4 +1,4 @@
-#=========== START Yoshi request to check the payment of each customer every day =========
+#======= [daily_report] ==== START Yoshi request to check the payment of each customer every day =========> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=450723317
 SELECT 
 	c.contract_no ,
 	c.ncn ,
@@ -110,7 +110,7 @@ order by c.contract_no desc;
 
 
 
-#============ START Check collection payment for Sack 43 Collection AAA collection payment sheet daily_report ===========
+#======= [daily_report] ======== START Check collection payment for Sack 43 Collection AAA collection payment ===========> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=2017818699
 SELECT 
 	c.contract_no ,
 	p.first_payment_date ,
@@ -160,9 +160,30 @@ GROUP BY c.prospect_id;
 
 
 
+#======= [%_of_paid] ======== Calculate the paid amount Sheet %_of_paid  ================> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=88806333
+select c.contract_no , p.last_payment_date , 
+	CASE c.status WHEN 0 THEN 'Pending' WHEN 1 THEN 'Pending Approval' WHEN 2 THEN 'Pending Disbursement'
+		WHEN 3 THEN 'Disbursement Approval' WHEN 4 THEN 'Active' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'Refinance' WHEN 7 THEN 'Closed' ELSE NULL
+	END contract_status,
+	sum(case when co.status = 1 and co.date_collected >= date_add(date_add(date(now()), interval - 1 month), interval - 1 day)
+		then co.usd_amount + co.bank_usd_amount end) 'usd_amount',
+	sum(case when co.status = 1 and co.date_collected >= date_add(date_add(date(now()), interval - 1 month), interval - 1 day)
+		then co.thb_amount + co.bank_thb_amount end) 'thb_amount',
+	sum(case when co.status = 1 and co.date_collected >= date_add(date_add(date(now()), interval - 1 month), interval - 1 day) 
+		then co.lak_amount + co.bank_lak_amount end) 'lak_amount',
+	sum(case when co.status = 1 and co.date_collected >= date_add(date_add(date(now()), interval - 1 month), interval - 1 day) 
+		then co.payment_amount end) 'paid_amount',
+	sum(co.payment_amount ) 'all_paid_amount'
+from tblcontract c
+left join tblprospect p on (p.id = c.prospect_id)
+left join tblcollection co on (co.contract_id = c.id) 
+where p.contract_type = 5 and c.status in (4,6,7)
+group by contract_no;
 
 
-#============= Calculate the paid amount and outstanding amount Sheet Yoshi ================
+
+
+#======= [Yoshi] ======== Calculate the paid amount and outstanding amount Sheet Yoshi ================> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=742364173
 SELECT c.contract_no , c.ncn , p.trading_currency ,
 	SUM(pm.amount) 'total_amount',
 	SUM(CASE WHEN pm.`type` = 'principal' THEN pm.amount END) 'principal',
@@ -239,7 +260,7 @@ group by p.id ;
 
 
 
-#============= AAA data to sheet daily_monitor ================
+#======= [daily_monitor] ======== AAA data to sheet daily_monitor ================> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=914214082
 select c.contract_no , c.ncn , p.trading_currency , p.loan_amount ,
 	SUM(CASE WHEN pm.due_date <= DATE(NOW()) THEN pm.amount - pm.paid_amount - (pm.refinance_amount + pm.void_amount) END) 'total_amount_until_today',
 	count(CASE WHEN pm.due_date <= DATE(NOW()) AND pm.`type` = 'principal' and pm.status = 0 THEN 1 END) 'days_of_principal_until_today',
@@ -263,7 +284,7 @@ group by p.id ;
 
 
 
-#============ START Export customer and guarantor information to Yoshi and Paolor =============
+#======= [customer_info] ======== START Export customer and guarantor information to Yoshi and Paolor =============> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=1506076242
 SELECT 
 	c.contract_no ,
 	c.ncn ,
@@ -368,7 +389,7 @@ ORDER BY p.id ;
 
 
 
-#=============== Contract source on google sheet AAA Collection Report ================
+#======= [contract_source] ======== Contract source on google sheet AAA Collection Report ================> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=1341146732
 SELECT 
 	FROM_UNIXTIME(p.date_created, '%Y-%m-%d') Created_date,
 	p.id 'contract no',
@@ -468,37 +489,6 @@ WHERE p.contract_type = 5 ;
 
 
 
-
-#============ START Check collection payment for Sack 43 Collection AAA collection payment sheet daily_report ===========
-SELECT 
-	c.contract_no ,
-	p.first_payment_date ,
-	p.last_payment_date ,
-	ps.payment_date 'date_already_paid',
-	p.no_of_payment ,
-	DATEDIFF(ps.payment_date, p.first_payment_date - 1) 'no_of_already_paid' ,
-	CASE WHEN c.status = 6 OR c.status = 7 THEN 0 
-		WHEN p.first_payment_date >= DATE(NOW()) or ps.payment_date >= DATE(NOW()) THEN 0
-		WHEN c.status = 4 THEN DATEDIFF(DATE(NOW()), ps.payment_date ) 
-	END 'delay_days_after_date_already_paid' ,
-	CASE WHEN c.status = 6 OR c.status = 7 or p.last_payment_date >= DATE(NOW()) THEN 0 
-		WHEN c.status = 4 THEN DATEDIFF(DATE(NOW()), p.last_payment_date ) 
-	END 'delay_days_after_last_payment_date' ,
-	CASE WHEN c.status = 6 THEN 'already paid' WHEN c.status = 7 THEN 'already paid'
-		WHEN DATEDIFF(DATE(NOW()),  p.first_payment_date) < 1 THEN 'already paid'
-		WHEN DATEDIFF(DATE(NOW()),  p.first_payment_date) >= 1 THEN 'not paid'
-		WHEN DATEDIFF(DATE(NOW()),  ps.payment_date) <= 1 THEN 'already paid'
-		WHEN DATEDIFF(DATE(NOW()),  ps.payment_date) > 1 THEN 'not paid'
-		ELSE NULL
-	END 'payment_status',
-	CASE c.status WHEN 0 THEN 'Pending' WHEN 1 THEN 'Pending Approval' WHEN 2 THEN 'Pending Disbursement' WHEN 3 THEN 'Disbursement Approval'
-		WHEN 4 THEN 'Active' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'Refinance' WHEN 7 THEN 'Closed' ELSE NULL
-	END contract_status
-FROM tblcontract c
-LEFT JOIN tblprospect p ON (c.prospect_id = p.id)
-LEFT JOIN tblpaymentschedule ps ON ps.id = (SELECT id FROM tblpaymentschedule WHERE status = 1 and payment_amount !=0 and contract_id = c.id ORDER BY payment_date DESC LIMIT 1)
-WHERE p.contract_type in (6,7,8) and c.status in (4,6,7) -- and p.id in (3168)
-GROUP BY c.prospect_id;
 
 
 
