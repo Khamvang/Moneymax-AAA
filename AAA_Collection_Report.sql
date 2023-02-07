@@ -1,4 +1,4 @@
-#======= [daily_report] ==== START Yoshi request to check the payment of each customer every day =========> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=450723317
+#======= [collection] ==== START Yoshi request to check the payment of each customer every day =========> https://docs.google.com/spreadsheets/d/1l6CSoDHrF7xs_5WRSKN1t2k3nfRreYLVLdHAKyNek30/edit#gid=450723317
 SELECT 
 	c.contract_no ,
 	c.ncn ,
